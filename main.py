@@ -4,47 +4,62 @@ import math
 import re
 import sys
 import os
+import jieba.analyse
+
+
 x1 = open(sys.argv[1], 'r', encoding='UTF-8')
 f_x1 = x1.read()
 x1.close()
 x2 = open(sys.argv[2], 'r', encoding='UTF-8')
 f_x2 = x2.read()
-x2.close()
 
-#读取停用词
-def stopwordslist(filepath):
-    stopwords = [line.strip() for line in open(filepath, 'r', encoding='UTF-8').readlines()]
-    return stopwords
 
-# 加载停用词
-stopwords = stopwordslist("sim_0.8/orig.txt")
+def words2vec(words1=None, words2=None):
+    v1 = []
+    v2 = []
+    tag1 = jieba.analyse.extract_tags(words1, withWeight=True)
+    tag2 = jieba.analyse.extract_tags(words2, withWeight=True)
+    tag_dict1 = {i[0]: i[1] for i in tag1}
+    tag_dict2 = {i[0]: i[1] for i in tag2}
+    merged_tag = set(tag_dict1.keys()) | set(tag_dict2.keys())
+    for i in merged_tag:
+        if i in tag_dict1:
+            v1.append(tag_dict1[i])
+        else:
+            v1.append(0)
+        if i in tag_dict2:
+            v2.append(tag_dict2[i])
+        else:
+            v2.append(0)
+    return v1, v2
 
-def cosine_similarity(sentence1: str, sentence2: str) -> float:
-    """
-    :param sentence1: s
-    :param sentence2:
-    :return: 两句文本的相识度
-    """
-    seg1 = [word for word in jieba.cut(sentence1) if word not in stopwords]
-    seg2 = [word for word in jieba.cut(sentence2) if word not in stopwords]
-    word_list = list(set([word for word in seg1 + seg2]))#建立词库
-    word_count_vec_1 = []
-    word_count_vec_2 = []
-    for word in word_list:
-        word_count_vec_1.append(seg1.count(word))#文本1统计在词典里出现词的次数
-        word_count_vec_2.append(seg2.count(word))#文本2统计在词典里出现词的次数
-    vec_1 = np.array(word_count_vec_1)
-    vec_2 = np.array(word_count_vec_2)  #余弦公式
 
-    num = vec_1.dot(vec_2.T)
-    denom = np.linalg.norm(vec_1) * np.linalg.norm(vec_2)
-    cos = float(num )/ denom
-    count = 0.5 + 0.5 * cos
-    return count
-similarity= cosine_similarity(f_x1, f_x2)#计算相似度
-print("\nsimilarity=%f"%similarity)
+def cosine_similarity(vector1, vector2):
+    dot_product = 0.0
+    normA = 0.0
+    normB = 0.0
+    for a, b in zip(vector1, vector2):
+        dot_product += a * b
+        normA += a ** 2
+        normB += b ** 2
+    if normA == 0.0 or normB == 0.0:
+        return 0
+    else:
+        return round(dot_product / ((normA ** 0.5) * (normB ** 0.5)) , 2)
+
+
+def cosine(str1, str2):
+    vec1, vec2 = words2vec(str1, str2)
+    return cosine_similarity(vec1, vec2)
+similarity= cosine(f_x1, f_x2)#计算相似度
+if similarity!=0:
+    print("\nsimilarity=%.2f" % similarity)
+
+else :
+    print('结果异常，请检查!')
+
 file0 = open(sys.argv[3],'w',encoding='UTF-8')
-print("similarity==%f"%similarity,file=file0)
+print("similarity==%.2f"%similarity,file=file0)
 
 
 
